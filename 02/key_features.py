@@ -43,7 +43,7 @@ def fast_feature_extract(img, threshold):
     img3 = cv.drawKeypoints(img, kp, None, color=(255,0,0))
     cv.imwrite('fast_false.png', img3)
 
-def orb_feature_extract(img, nfeatures=500):
+def orb_feature_extract(img, nfeatures=1000):
 
     # Initiate ORB detector
     orb = cv.ORB_create(nfeatures)
@@ -85,25 +85,6 @@ def filter_distance(matches):
 
     total_matches = np.size(matches)
     
-    # # set the minimum distance as the minimum distance we found between key points
-    # min_dist = matches[0].distance
-    
-    # # set the maximum distance as the maximum distance we found between key points
-    # max_dist = matches[total_matches - 1].distance
-    
-    # # set threshold to find good matches
-    # good_matches = []
-    # if min_dist < 20:  # You can try different threshold
-    #     min_dist = 20
-
-    # for i in range(0, total_matches - 1):
-    #     if matches[i].distance >= min_dist and matches[i].distance <= max_dist * 0.66:
-    #         good_matches.append(matches[i])
-
-    # # sort good matches
-    # good_matches = sorted(good_matches, key=lambda x: x.distance)
-    
-        # return matches
     return good_matches
 
 def display_matches(img1, kp1, img2, kp2, matches, pause_length=1000):
@@ -112,8 +93,8 @@ def display_matches(img1, kp1, img2, kp2, matches, pause_length=1000):
     match_img = cv.resize(match_img, (1280,360))
 
     # Display the result
-    cv.imshow('Matches', match_img)
-    cv.waitKey(pause_length)
+    cv.imshow('Matches one', match_img)
+    cv.waitKey()
     cv.destroyAllWindows()
 
 def feature_match_points(dir_path, files, first_idx, idx_increment):
@@ -127,6 +108,8 @@ def feature_match_points(dir_path, files, first_idx, idx_increment):
     img2 = cv.imread(os.path.join(dir_path, files[first_idx+idx_increment]), cv.IMREAD_GRAYSCALE)
 
     _, kp2, des2 = orb_feature_extract(img2)
+
+    print(f"No features for img1: {len(kp1)}, for img2: {len(kp2)}")
 
     # Create a brute-force matcher and match the descriptors
     # bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
@@ -146,21 +129,22 @@ def find_R_t(coord1:list, coord2:list, K):
 
     kp_coord_1 = np.int32(coord1)
     kp_coord_2 = np.int32(coord2)
-    print(kp_coord_1, kp_coord_2)
+    # print(kp_coord_1, kp_coord_2)
 
     if kp_coord_1 is None or kp_coord_2 is None:
         raise Exception("MAJOR ERROR")
 
-    F, mask = cv.findFundamentalMat(kp_coord_1, kp_coord_2, cv.FM_8POINT)
+    F, mask = cv.findFundamentalMat(kp_coord_1, kp_coord_2, cv.RANSAC)
     # # Print the fundamental matrix and the number of inliers
-    # print("Fundamental matrix:\n", F)
+    print("Fundamental matrix:\n", F)
     # print("Number of inliers:", np.sum(mask))
     E, _ = cv.findEssentialMat(kp_coord_1, kp_coord_2, K, cv.RANSAC)
 
-    print(E)
+    # print(E)
     pts, R, t, mask = cv.recoverPose(E, kp_coord_1, kp_coord_2, K)
 
     return pts, R, t, mask
+
 
 # def plotTrajectory():
 
@@ -187,7 +171,7 @@ def main():
 
     K = set_np_arr((3,3), calib["K_00"].strip().split(" "))
 
-    idx_increment = 2
+    idx_increment = 1
 
     idx = 0
     while idx < len(files)-idx_increment:
@@ -217,12 +201,8 @@ def main():
 
         cur_position = R.dot(cur_position) + t
 
-        # print('shape r.current',R.dot(cur_position).shape)
-        # print('shape t',t.shape)
         camera_positions.append(cur_position)
-        
-        # print("Camera positions: ",camera_positions[0])
-        # break
+    
 
     plots = np.array(camera_positions).T
     # print((plots[0][0], plots[0][1]))
